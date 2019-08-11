@@ -99,6 +99,10 @@ public class MainWindow extends javax.swing.JFrame {
                     Thread.sleep(Long.valueOf(msgData[msgData.length - 1]));
                 } catch (InterruptedException ex) {
                     // it's fine because this was most likely caused by stop() ;)
+                    
+                    // stop all notes and release the sustain
+                    piano.send(new DefaultMidiMessage(new byte[]{-80, 123, 127}), 0);
+                    piano.send(new DefaultMidiMessage(new byte[]{-80, 64, 0}), 0);
                     outputDevice.close();
                     break;
                 }
