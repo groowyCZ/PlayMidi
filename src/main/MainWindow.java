@@ -11,6 +11,7 @@ import midi.MidiHandler;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.sound.midi.InvalidMidiDataException;
 import javax.sound.midi.MidiDevice;
 import javax.sound.midi.MidiUnavailableException;
 import javax.sound.midi.Receiver;
@@ -90,10 +91,12 @@ public class MainWindow extends javax.swing.JFrame {
         public void run() {
             for(String message : MainWindow.midiRecording) {
                 String[] msgData = message.split(",");
-                byte[] data = {Byte.valueOf(msgData[0]), Byte.valueOf(msgData[1]),
-                                Byte.valueOf(msgData[2])};
+                byte[] data = new byte[msgData.length - 1];
+                for (int i = 0; i < msgData.length - 1 /*last value is time*/; i++) {
+                    data[i] = Byte.valueOf(msgData[i]);
+                }
                 try {
-                    Thread.sleep(Long.valueOf(msgData[3]));
+                    Thread.sleep(Long.valueOf(msgData[msgData.length - 1]));
                 } catch (InterruptedException ex) {
                     // it's fine because this was most likely caused by stop() ;)
                     outputDevice.close();
@@ -129,6 +132,7 @@ public class MainWindow extends javax.swing.JFrame {
         outputStopButton = new javax.swing.JButton();
         saveButton = new javax.swing.JButton();
         loadButton = new javax.swing.JButton();
+        saveMidiButton = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -191,6 +195,13 @@ public class MainWindow extends javax.swing.JFrame {
             }
         });
 
+        saveMidiButton.setText("Save as midi");
+        saveMidiButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                saveMidiButtonActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -200,29 +211,30 @@ public class MainWindow extends javax.swing.JFrame {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                                .addComponent(inputChooser, javax.swing.GroupLayout.Alignment.LEADING, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(jLabel1, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                            .addComponent(jLabel1)
                             .addGroup(layout.createSequentialGroup()
                                 .addComponent(recordButton)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(inputStopButton)))
+                                .addComponent(inputStopButton))
+                            .addComponent(inputChooser, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                         .addGap(18, 18, 18)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addGroup(layout.createSequentialGroup()
                                 .addComponent(playButton)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(outputStopButton))
-                            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                                .addComponent(jLabel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(outputChooser, javax.swing.GroupLayout.PREFERRED_SIZE, 138, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                            .addComponent(jLabel2)
+                            .addComponent(outputChooser, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
                     .addComponent(virtualDevicesCheckBox)
                     .addGroup(layout.createSequentialGroup()
                         .addComponent(refreshButton)
                         .addGap(18, 18, 18)
-                        .addComponent(saveButton)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(loadButton)))
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(saveMidiButton)
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(saveButton)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(loadButton)))))
                 .addContainerGap(41, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
@@ -251,6 +263,8 @@ public class MainWindow extends javax.swing.JFrame {
                     .addComponent(refreshButton)
                     .addComponent(saveButton)
                     .addComponent(loadButton))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(saveMidiButton)
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
@@ -271,10 +285,10 @@ public class MainWindow extends javax.swing.JFrame {
         return null;
     }                                             
     
-    private String saveFileDialog() {
+    private String saveFileDialog(String ext, String extDescription) {
         JFileChooser fileChooser = new JFileChooser(System.getProperty("user.dir"));
-        fileChooser.setFileFilter(new FileNameExtensionFilter("MidiPlay files", "mpf"));
-        fileChooser.setSelectedFile(new File("unnamed.mpf"));
+        fileChooser.setFileFilter(new FileNameExtensionFilter(extDescription, ext));
+        fileChooser.setSelectedFile(new File("unnamed." + ext));
         int r = fileChooser.showSaveDialog(this);
         if(r == 0) {
             return fileChooser.getSelectedFile().getAbsolutePath();
@@ -358,12 +372,26 @@ public class MainWindow extends javax.swing.JFrame {
     }//GEN-LAST:event_outputStopButtonActionPerformed
 
     private void saveButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveButtonActionPerformed
-        saveRecording(saveFileDialog());
+        saveRecording(saveFileDialog("mpf", "MidiPlay file"));
     }//GEN-LAST:event_saveButtonActionPerformed
 
     private void loadButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loadButtonActionPerformed
         loadRecording(openFileDialog());
     }//GEN-LAST:event_loadButtonActionPerformed
+
+    private void saveMidiButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveMidiButtonActionPerformed
+        if(midiRecording.isEmpty()) return;
+        
+        String path = saveFileDialog("mid", "midi file");
+        if(path == null) return;
+        try {
+            MidiHandler.saveRecordingAsMidiFile(path);
+        } catch (IOException e) {
+            Utils.showError("Error when saving file to " + path, this);
+        } catch (InvalidMidiDataException ex) {
+            Utils.showError("Couldn't create midi sequence", this);
+        }
+    }//GEN-LAST:event_saveMidiButtonActionPerformed
     
     public void enableButtons() {
         this.recordButton.setEnabled(true);
@@ -382,6 +410,7 @@ public class MainWindow extends javax.swing.JFrame {
     private javax.swing.JButton recordButton;
     private javax.swing.JButton refreshButton;
     private javax.swing.JButton saveButton;
+    private javax.swing.JButton saveMidiButton;
     private javax.swing.JCheckBox virtualDevicesCheckBox;
     // End of variables declaration//GEN-END:variables
 }
